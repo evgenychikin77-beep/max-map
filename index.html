@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Интерактивная Карта MAX</title>
     <style>
-        /* Растягиваем карту на весь экран смартфона */
         html, body, #map {
             width: 100%;
             height: 100%;
@@ -15,221 +14,164 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             overflow: hidden;
         }
-
-        /* Выдвижная карточка события (шторка) */
+        /* Слой для вывода ошибок прямо на экран, если Яндекс заблокирует ключ */
+        #error-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.85);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 9999;
+            display: none;
+            font-size: 14px;
+        }
         .bottom-card {
             position: absolute;
-            bottom: -100%; /* Изначально скрыта внизу экрана */
+            bottom: -100%;
             left: 0;
             width: 100%;
             background-color: #0b0c0e;
             border-top-left-radius: 16px;
             border-top-right-radius: 16px;
             z-index: 1000;
-            transition: bottom 0.3s ease-out; /* Эффект плавного выезда */
+            transition: bottom 0.3s ease-out;
             color: #ffffff;
             box-sizing: border-box;
             max-height: 80vh;
             overflow-y: auto;
             box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
         }
-
-        /* Класс, который плавно выдвигает карточку при активации */
-        .bottom-card.active {
-            bottom: 0;
-        }
-
-        /* Картинка происшествия в карточке */
-        .card-media {
-            width: 100%;
-            height: 220px;
-            object-fit: cover;
-            background-color: #222;
-        }
-
-        /* Текстовое содержимое карточки */
-        .card-content {
-            padding: 16px;
-        }
-
-        .card-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 4px;
-            line-height: 1.4;
-        }
-
-        .card-geo {
-            font-size: 13px;
-            color: #8e8e93;
-            margin-bottom: 16px;
-        }
-
-        /* Кнопка "Следить" */
-        .follow-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            background-color: #1c1c1e;
-            color: #ffffff;
-            border: none;
-            padding: 12px;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-bottom: 16px;
-        }
-
-        .card-subtitle {
-            font-size: 14px;
-            font-weight: bold;
-            color: #8e8e93;
-            margin-bottom: 6px;
-        }
-
-        .card-text {
-            font-size: 14px;
-            color: #e5e5ea;
-            line-height: 1.4;
-        }
-
-        /* Кнопка-крестик для закрытия */
-        .close-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(0,0,0,0.5);
-            color: white;
-            border: none;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            font-size: 16px;
-            cursor: pointer;
-            z-index: 1010;
-        }
+        .bottom-card.active { bottom: 0; }
+        .card-media { width: 100%; height: 220px; object-fit: cover; background-color: #222; }
+        .card-content { padding: 16px; }
+        .card-title { font-size: 18px; font-weight: bold; margin-bottom: 4px; line-height: 1.4; }
+        .card-geo { font-size: 13px; color: #8e8e93; margin-bottom: 16px; }
+        .follow-btn { display: flex; align-items: center; justify-content: center; width: 100%; background-color: #1c1c1e; color: #ffffff; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 16px; }
+        .card-subtitle { font-size: 14px; font-weight: bold; color: #8e8e93; margin-bottom: 6px; }
+        .card-text { font-size: 14px; color: #e5e5ea; line-height: 1.4; }
+        .close-btn { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.5); color: white; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; cursor: pointer; z-index: 1010; }
     </style>
-    <!-- Подключение API Яндекс Карт v3.0 с вашим бесплатным ключом -->
+    <!-- Подключаем API Яндекс Карт v3.0 с вашим рабочим ключом -->
     <script src="https://yandex.ru"></script>
 </head>
 <body>
 
-    <!-- Контейнер, где отобразится темная карта -->
+    <div id="error-overlay"></div>
     <div id="map"></div>
 
-    <!-- Разметка нижней карточки происшествия -->
     <div id="eventCard" class="bottom-card">
         <button class="close-btn" onclick="closeCard()">×</button>
         <img id="cardImage" class="card-media" src="" alt="Медиа">
         <div class="card-content">
             <div id="cardTitle" class="card-title">Заголовок</div>
             <div id="cardGeo" class="card-geo">Адрес</div>
-            
             <button class="follow-btn">🔔 Следить</button>
-            
             <div class="card-subtitle">Кратко</div>
             <div id="cardText" class="card-text">Описание...</div>
         </div>
     </div>
 
     <script>
+        // Отлавливаем любые системные сбои скрипта Яндекса
+        window.onerror = function(message, source, lineno, colno, error) {
+            const overlay = document.getElementById('error-overlay');
+            overlay.style.display = 'block';
+            overlay.innerText = 'Ошибка загрузки карты: ' + message + '\nВозможно, Яндекс блокирует ваш API-ключ для этого домена.';
+            return false;
+        };
+
         initMap();
 
         async function initMap() {
-            // Ждем полной загрузки Яндекса
-            await ymaps3.ready;
-            const {YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker} = ymaps3;
-            // Подключаем модуль объединения точек в круги с цифрами (кластеризация)
-            const {YMapClusterer, clusterByGrid} = await ymaps3.import('@yandex/ymaps3-clusterer@0.0.1');
+            try {
+                await ymaps3.ready;
+                const {YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker} = ymaps3;
+                const {YMapClusterer, clusterByGrid} = await ymaps3.import('@yandex/ymaps3-clusterer@0.0.1');
 
-            // Создаем карту с центром на Москве
-            const map = new YMap(document.getElementById('map'), {
-                location: { center: [37.617635, 55.755814], zoom: 11 }
-            });
+                const map = new YMap(document.getElementById('map'), {
+                    location: { center: [37.617635, 55.755814], zoom: 11 }
+                });
 
-            // Задаем темную ночную тему для карты
-            map.addChild(new YMapDefaultSchemeLayer({ theme: 'dark' }));
-            map.addChild(new YMapDefaultFeaturesLayer());
+                map.addChild(new YMapDefaultSchemeLayer({ theme: 'dark' }));
+                map.addChild(new YMapDefaultFeaturesLayer());
 
-            // ТЕСТОВАЯ БАЗА ДАННЫХ ВАШИХ ТОЧЕК
-            // Вы сможете самостоятельно добавлять сюда новые строчки по аналогии
-            const points = [
-                {
-                    id: 1,
-                    coordinates: [37.61, 55.75], // Координаты [долгота, широта]
-                    title: "Неизвестные подожгли автомобиль во дворе ЖК Мисайлово",
-                    geo: "Ленинский городского округ, посёлок городского типа...",
-                    text: "Поджигатели успели скрыться. На месте происшествия работают экстренные службы.",
-                    image: "https://unsplash.com", // Ссылка на фото
-                    type: "fire"
-                }
-            ];
+                const points = [
+                    {
+                        id: 1,
+                        coordinates: [37.617635, 55.755814],
+                        title: "Тестовая точка: Метро Охотный Ряд",
+                        geo: "Москва, Центральный административный округ",
+                        text: "Карта успешно работает через API Яндекс Карт v3.0. Защита ключа пройдена.",
+                        image: "https://unsplash.com",
+                        type: "fire"
+                    }
+                ];
 
-            // Настройка отображения одиночной иконки пожара на карте
-            const marker = (feature) => {
-                const element = document.createElement('div');
-                element.style.width = '32px';
-                element.style.height = '32px';
-                element.style.borderRadius = '50%';
-                element.style.display = 'flex';
-                element.style.alignItems = 'center';
-                element.style.justifyContent = 'center';
-                element.style.cursor = 'pointer';
-                element.style.fontSize = '18px';
+                const marker = (feature) => {
+                    const element = document.createElement('div');
+                    element.style.width = '32px';
+                    element.style.height = '32px';
+                    element.style.borderRadius = '50%';
+                    element.style.display = 'flex';
+                    element.style.alignItems = 'center';
+                    element.style.justifyContent = 'center';
+                    element.style.cursor = 'pointer';
+                    element.style.fontSize = '18px';
 
-                if (feature.type === 'fire') {
-                    element.innerHTML = '🔥';
-                    element.style.background = 'rgba(255, 69, 0, 0.3)';
-                    element.style.border = '2px solid #ff4500';
-                }
+                    if (feature.type === 'fire') {
+                        element.innerHTML = '🔥';
+                        element.style.background = 'rgba(255, 69, 0, 0.3)';
+                        element.style.border = '2px solid #ff4500';
+                    }
 
-                // Логика клика по маркеру: заполняем шторку текстом и выдвигаем
-                element.onclick = (e) => {
-                    e.stopPropagation();
-                    openCard(feature);
+                    element.onclick = (e) => {
+                        e.stopPropagation();
+                        openCard(feature);
+                    };
+
+                    return new YMapMarker({coordinates: feature.coordinates}, element);
                 };
 
-                return new YMapMarker({coordinates: feature.coordinates}, element);
-            };
+                const cluster = (coordinates, features) => {
+                    const element = document.createElement('div');
+                    element.style.width = '40px';
+                    element.style.height = '40px';
+                    element.style.borderRadius = '50%';
+                    element.style.background = '#1c1c1e';
+                    element.style.border = '2px solid #3a3a3c';
+                    element.style.color = '#ffffff';
+                    element.style.display = 'flex';
+                    element.style.alignItems = 'center';
+                    element.style.justifyContent = 'center';
+                    element.style.fontWeight = 'bold';
+                    element.innerHTML = features.length;
 
-            // Настройка отображения кругов группировки (Кластеров), когда точек рядом много
-            const cluster = (coordinates, features) => {
-                const element = document.createElement('div');
-                element.style.width = '40px';
-                element.style.height = '40px';
-                element.style.borderRadius = '50%';
-                element.style.background = '#1c1c1e';
-                element.style.border = '2px solid #3a3a3c';
-                element.style.color = '#ffffff';
-                element.style.display = 'flex';
-                element.style.alignItems = 'center';
-                element.style.justifyContent = 'center';
-                element.style.fontWeight = 'bold';
-                element.innerHTML = features.length; // Цифра внутри круга (количество точек)
+                    return new YMapMarker({coordinates}, element);
+                };
 
-                return new YMapMarker({coordinates}, element);
-            };
+                const clusterer = new YMapClusterer({
+                    method: clusterByGrid({gridSize: 64}),
+                    features: points,
+                    marker,
+                    cluster
+                });
 
-            // Объединяем всё на карте
-            const clusterer = new YMapClusterer({
-                method: clusterByGrid({gridSize: 64}),
-                features: points,
-                marker,
-                cluster
-            });
-
-            map.addChild(clusterer);
+                map.addChild(clusterer);
+            } catch (err) {
+                const overlay = document.getElementById('error-overlay');
+                overlay.style.display = 'block';
+                overlay.innerText = 'Критическая ошибка инициализации: ' + err.message;
+            }
         }
 
-        // Функции управления выдвижной шторкой
         function openCard(data) {
             document.getElementById('cardTitle').innerText = data.title;
             document.getElementById('cardGeo').innerText = data.geo;
             document.getElementById('cardText').innerText = data.text;
             document.getElementById('cardImage').src = data.image;
-            
             document.getElementById('eventCard').classList.add('active');
         }
 
