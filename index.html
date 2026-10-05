@@ -18,10 +18,12 @@
             overflow: hidden;
         }
 
+        /* Делаем карту ТЕМНОЙ с помощью CSS-фильтров */
         .leaflet-tile-container {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
         }
 
+        /* Выдвижная карточка события (шторка) */
         .bottom-card {
             position: absolute;
             bottom: -100%;
@@ -130,12 +132,15 @@
     </div>
 
     <script>
+        // Инициализируем карту и жестко фиксируем центр в Москве
         const map = L.map('map', { zoomControl: false }).setView([55.755814, 37.617635], 11);
 
+        // Загружаем бесплатную карту OpenStreetMap
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19
         }).addTo(map);
 
+        // Наша база данных происшествий (Проверена, пустых полей нет)
         const points = [
             {
                 id: 1,
@@ -148,6 +153,7 @@
             }
         ];
 
+        // Добавляем маркеры через стандартную безопасную систему Leaflet
         points.forEach(point => {
             const marker = L.marker([point.lat, point.lng]).addTo(map);
 
@@ -157,6 +163,7 @@
             });
         });
 
+        // Функции управления выдвижной шторкой
         function openCard(data) {
             document.getElementById('cardTitle').innerText = data.title;
             document.getElementById('cardGeo').innerText = data.geo;
