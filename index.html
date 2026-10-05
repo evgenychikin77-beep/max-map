@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Интерактивная Карта MAX</title>
+    <!-- Подключаем стили и скрипты карты Leaflet (работает без ключей!) -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <script src="https://unpkg.com"></script>
     <style>
-        /* Растягиваем карту на весь экран смартфона */
         html, body, #map {
             width: 100%;
             height: 100%;
@@ -16,9 +18,9 @@
             overflow: hidden;
         }
 
-        /* Делаем карту ТЕМНОЙ с помощью CSS-фильтра (независимо от настроек Яндекса) */
-        .ymaps-2-1-79-map {
-            filter: invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        /* Делаем карту ТЕМНОЙ с помощью CSS-фильтров */
+        .leaflet-tile-container {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
 
         /* Выдвижная карточка события (шторка) */
@@ -110,9 +112,14 @@
             cursor: pointer;
             z-index: 1010;
         }
+
+        /* Стиль для кастомного маркера-огонька */
+        .fire-icon {
+            font-size: 24px;
+            text-align: center;
+            line-height: 30px;
+        }
     </style>
-    <!-- Подключаем стабильную версию API 2.1 с вашим ключом -->
-    <script src="https://yandex.ru" type="text/javascript"></script>
 </head>
 <body>
 
@@ -131,57 +138,48 @@
         </div>
     </div>
 
-    <script type="text/javascript">
-        // Ожидаем загрузки Яндекса
-        ymaps.ready(init);
+    <script>
+        // Инициализируем карту с центром в Москве
+        const map = L.map('map', { zoomControl: false }).setView([55.755814, 37.617635], 11);
 
-        function init() {
-            // Создаем карту с центром в Москве
-            var myMap = new ymaps.Map("map", {
-                center: [55.755814, 37.617635],
-                zoom: 11,
-                controls: [] // Отключаем лишние стандартные кнопки
+        // Загружаем бесплатные карты OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // Наша база данных происшествий
+        const points = [
+            {
+                id: 1,
+                lat: 55.755814,
+                lng: 37.617635,
+                title: "Неизвестные подожгли автомобиль во дворе ЖК Мисайлово",
+                geo: "Ленинский городской округ, посёлок городского типа...",
+                text: "Поджигатели успели скрыться. На месте происшествия работают экстренные службы. Карта успешно запущена на Leaflet движке без блокировок ключей.",
+                image: "https://unsplash.com"
+            }
+        ];
+
+        // Добавляем маркеры на карту
+        points.forEach(point => {
+            // Создаем иконку огонька
+            const fireIcon = L.divIcon({
+                html: '🔥',
+                className: 'fire-icon',
+                iconSize:,
+                iconAnchor: [15, 15]
             });
 
-            // База данных ваших точек происшествий
-            var points = [
-                {
-                    id: 1,
-                    coords: [55.755814, 37.617635], // Координаты [широта, долгота] для v2.1
-                    title: "Неизвестные подожгли автомобиль во дворе ЖК Мисайлово",
-                    geo: "Ленинский городской округ, посёлок городского типа...",
-                    text: "Поджигатели успели скрыться. На месте происшествия работают экстренные службы.",
-                    image: "https://unsplash.com"
-                }
-            ];
+            const marker = L.marker([point.lat, point.lng], { icon: fireIcon }).addTo(map);
 
-            // Создаем кластеризатор для автоматической группировки в круги с цифрами
-            var clusterer = new ymaps.Clusterer({
-                preset: 'islands#darkClusterIcons', // Темный стиль кругов группировки
-                groupByCoordinates: false,
-                clusterDisableClickZoom: false
+            // При клике открываем шторку
+            marker.on('click', () => {
+                openCard(point);
             });
+        });
 
-            // Проходим по всем точкам и добавляем их на карту
-            points.forEach(function(point) {
-                var myPlacemark = new ymaps.Placemark(point.coords, {}, {
-                    preset: 'islands#redCircleDotIconWithCaption', // Красный маркер-точка
-                    iconColor: '#ff4500'
-                });
-
-                // Перехватываем клик по маркеру, чтобы красиво выдвинуть шторку приложения
-                myPlacemark.events.add('click', function (e) {
-                    e.preventDefault();
-                    openCard(point);
-                });
-
-                clusterer.add(myPlacemark);
-            });
-
-            myMap.geoObjects.add(clusterer);
-        }
-
-        // Логика работы выдвижной карточки
+        // Управление шторкой
         function openCard(data) {
             document.getElementById('cardTitle').innerText = data.title;
             document.getElementById('cardGeo').innerText = data.geo;
