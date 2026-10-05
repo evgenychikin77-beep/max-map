@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Интерактивная Карта MAX</title>
-    <!-- Подключаем стили и скрипты карты Leaflet -->
+    <!-- Подключаем стили и скрипты карты Leaflet со стабильного мирового сервера -->
     <link rel="stylesheet" href="https://unpkg.com" />
     <script src="https://unpkg.com"></script>
     <style>
@@ -18,12 +18,10 @@
             overflow: hidden;
         }
 
-        /* Делаем карту ТЕМНОЙ с помощью CSS-фильтров */
         .leaflet-tile-container {
-            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
         }
 
-        /* Выдвижная карточка события (шторка) */
         .bottom-card {
             position: absolute;
             bottom: -100%;
@@ -112,13 +110,6 @@
             cursor: pointer;
             z-index: 1010;
         }
-
-        /* Стиль для кастомного маркера-огонька */
-        .fire-icon {
-            font-size: 24px;
-            text-align: center;
-            line-height: 30px;
-        }
     </style>
 </head>
 <body>
@@ -139,16 +130,12 @@
     </div>
 
     <script>
-        // Инициализируем карту с центром в Москве
         const map = L.map('map', { zoomControl: false }).setView([55.755814, 37.617635], 11);
 
-        // Загружаем бесплатные карты OpenStreetMap
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
+            maxZoom: 19
         }).addTo(map);
 
-        // Наша база данных происшествий
         const points = [
             {
                 id: 1,
@@ -156,30 +143,20 @@
                 lng: 37.617635,
                 title: "Неизвестные подожгли автомобиль во дворе ЖК Мисайлово",
                 geo: "Ленинский городской округ, посёлок городского типа...",
-                text: "Поджигатели успели скрыться. На месте происшествия работают экстренные службы. Карта успешно запущена на Leaflet движке без блокировок ключей.",
+                text: "Поджигатели успели скрыться. На месте происшествия работают экстренные службы. Карта успешно запущена на вечном движке.",
                 image: "https://unsplash.com"
             }
         ];
 
-        // Добавляем маркеры на карту
         points.forEach(point => {
-            // Создаем иконку огонька с фиксированными размерами [30, 30] и привязкой [15, 15]
-            const fireIcon = L.divIcon({
-                html: '🔥',
-                className: 'fire-icon',
-                iconSize:,
-                iconAnchor: [15, 15]
-            });
+            const marker = L.marker([point.lat, point.lng]).addTo(map);
 
-            const marker = L.marker([point.lat, point.lng], { icon: fireIcon }).addTo(map);
-
-            // При клике открываем шторку
-            marker.on('click', () => {
+            // При клике открываем нижнюю карточку
+            marker.on('click', function() {
                 openCard(point);
             });
         });
 
-        // Управление шторкой
         function openCard(data) {
             document.getElementById('cardTitle').innerText = data.title;
             document.getElementById('cardGeo').innerText = data.geo;
